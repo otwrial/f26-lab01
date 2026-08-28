@@ -58,4 +58,45 @@ class BookingServiceTest {
         svc.book(roomA, bob, new TimeInterval(660, 720));
         assertEquals(2, svc.listBookings(roomA).size());
     }
+
+    @Test
+    void cancelBookingPromotesAnEligibleWaiter() {
+        BookingService svc = newService();
+        svc.book(roomA, alice, new TimeInterval(600, 660));
+        svc.book(roomA, bob, new TimeInterval(600, 660));
+
+        svc.cancelBooking("b1");
+
+        assertEquals(1, svc.listBookings(roomA).size());
+        assertEquals(bob, svc.listBookings(roomA).get(0).user());
+    }
+
+    @Test
+    void cancelBookingSkipsConflictingWaiterForNextEligibleWaiter() {
+        BookingService svc = newService();
+        svc.book(roomA, alice, new TimeInterval(600, 660));
+        svc.book(roomA, bob, new TimeInterval(660, 720));
+        svc.book(roomA, bob, new TimeInterval(600, 700));
+        svc.book(roomA, alice, new TimeInterval(600, 660));
+
+        svc.cancelBooking("b1");
+
+        assertEquals(2, svc.listBookings(roomA).size());
+        assertEquals(
+            1,
+            svc.listBookings(roomA).stream()
+                .filter(booking -> booking.user().equals(alice))
+                .filter(booking -> booking.interval().equals(new TimeInterval(600, 660)))
+                .count());
+    }
+
+    @Test
+    void cancellingUnknownBookingDoesNothing() {
+        BookingService svc = newService();
+        svc.book(roomA, alice, new TimeInterval(600, 660));
+
+        svc.cancelBooking("missing");
+
+        assertEquals(1, svc.listBookings(roomA).size());
+    }
 }
